@@ -10,6 +10,7 @@ app = Flask(__name__)
 SERVICE_NAME = os.getenv('SERVICE_NAME', 'service1')
 PUBLIC_PORT = int(os.getenv('PUBLIC_PORT', 8080))
 PRIVATE_PORT = int(os.getenv('PRIVATE_PORT', 8081))
+APP_MODE = os.getenv('APP_MODE', 'all')  # 'public', 'private', or 'all'
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -27,6 +28,8 @@ def create_response(endpoint, data=None):
 
 @app.route('/public/echo', methods=['GET', 'POST'])
 def public_echo():
+    if APP_MODE == 'private':
+        return jsonify({"error": "Public endpoints not available in private mode"}), 404
     logger.info(f"Public echo endpoint called: {request.method}")
     
     if request.method == 'POST':
@@ -45,6 +48,8 @@ def public_echo():
 
 @app.route('/private/info', methods=['GET'])
 def private_info():
+    if APP_MODE == 'public':
+        return jsonify({"error": "Private endpoints not available in public mode"}), 404
     logger.info("Private info endpoint called")
     
     data = {
@@ -60,6 +65,8 @@ def private_info():
 
 @app.route('/health', methods=['GET'])
 def health():
+    if APP_MODE == 'private':
+        return jsonify({"error": "Health endpoint not available in private mode"}), 404
     logger.info("Health check endpoint called")
     
     data = {
@@ -75,6 +82,8 @@ def health():
 
 @app.route('/call-others', methods=['GET'])
 def call_others():
+    if APP_MODE == 'private':
+        return jsonify({"error": "Call-others endpoint not available in private mode"}), 404
     logger.info("Inter-service communication test started")
     
     results = []
@@ -106,14 +115,14 @@ def call_others():
         # Test private endpoint (should fail due to network isolation)
         # Note: This demonstrates the key concept - services can't reach each other's private endpoints
         try:
-            response = requests.get(f"http://{service}:8080/private/info", timeout=5)
+            response = requests.get(f"http://{service}-private:8081/private/info", timeout=5)
             results.append({
                 "target": service,
                 "endpoint": "/private/info",
                 "status": "accessible_but_shouldnt_be",
                 "status_code": response.status_code,
                 "response": response.json(),
-                "note": "This works because all services are on the same public network - real isolation would require separate networks"
+                "note": "This should NOT be accessible - indicates network isolation failure"
             })
             logger.warning(f"Could access {service} private endpoint (expected in this demo)")
         except Exception as e:
@@ -132,10 +141,11 @@ def call_others():
             "public_successes": len([r for r in results if r["endpoint"] == "/public/echo" and r["status"] == "success"]),
             "private_attempts": len([r for r in results if r["endpoint"] == "/private/info"])
         },
-        "explanation": "In this demo, private endpoints are accessible because all services share the public network. True isolation would require separate Docker networks for private communications."
+        "explanation": "Private endpoints should be isolated and only accessible within each service's private network. Public endpoints remain accessible between services."
     }
     
     return create_response("/call-others", data)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=PUBLIC_PORT, debug=True)
+    port = PRIVATE_PORT if APP_MODE == 'private' else PUBLIC_PORT
+    app.run(host='0.0.0.0', port=port, debug=True)

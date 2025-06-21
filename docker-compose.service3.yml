@@ -7,10 +7,24 @@ services:
       - SERVICE_NAME=service3
       - PUBLIC_PORT=8080
       - PRIVATE_PORT=8081
+      - APP_MODE=public
     ports:
       - "8003:8080"  # Public port mapping
     networks:
       - public_network
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  service3-private:
+    build: ./service3
+    container_name: service3-private
+    environment:
+      - SERVICE_NAME=service3
+      - PUBLIC_PORT=8080
+      - PRIVATE_PORT=8081
+      - APP_MODE=private
+    networks:
       - service3_private
     volumes:
       - ./logs:/app/logs
