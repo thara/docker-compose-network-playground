@@ -13,32 +13,77 @@ This playground helps you understand:
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│    Service 1    │    │    Service 2    │    │    Service 3    │
-│                 │    │                 │    │                 │
-│ Port: 8001:8080 │    │ Port: 8002:8080 │    │ Port: 8003:8080 │
-│                 │    │                 │    │                 │
-│ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
-│ │Public Endpoints│ │    │ │Public Endpoints│ │    │ │Public Endpoints│ │
-│ │/health      │ │    │ │/health      │ │    │ │/health      │ │
-│ │/public/echo │ │    │ │/public/echo │ │    │ │/public/echo │ │
-│ │/call-others │ │    │ │/call-others │ │    │ │/call-others │ │
-│ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
-│                 │    │                 │    │                 │
-│ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
-│ │Private Endpoints│    │ │Private Endpoints│    │ │Private Endpoints│
-│ │/private/info│ │    │ │/private/info│ │    │ │/private/info│ │
-│ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────────┐
-                    │   Public Network    │
-                    │  (inter-service     │
-                    │  communication)     │
-                    └─────────────────────┘
+```mermaid
+graph TB
+    subgraph "Host System"
+        subgraph "Docker Networks"
+            PN[Public Network<br/>public_network]
+            SP1[Service1 Private<br/>service1_private]
+            SP2[Service2 Private<br/>service2_private]
+            SP3[Service3 Private<br/>service3_private]
+        end
+        
+        subgraph "Service 1 Container"
+            S1[Service 1<br/>Port: 8001:8080]
+            S1PE[Public Endpoints<br/>/health<br/>/public/echo<br/>/call-others]
+            S1PV[Private Endpoint<br/>/private/info]
+            S1 --> S1PE
+            S1 --> S1PV
+        end
+        
+        subgraph "Service 2 Container"
+            S2[Service 2<br/>Port: 8002:8080]
+            S2PE[Public Endpoints<br/>/health<br/>/public/echo<br/>/call-others]
+            S2PV[Private Endpoint<br/>/private/info]
+            S2 --> S2PE
+            S2 --> S2PV
+        end
+        
+        subgraph "Service 3 Container"
+            S3[Service 3<br/>Port: 8003:8080]
+            S3PE[Public Endpoints<br/>/health<br/>/public/echo<br/>/call-others]
+            S3PV[Private Endpoint<br/>/private/info]
+            S3 --> S3PE
+            S3 --> S3PV
+        end
+    end
+    
+    subgraph "External Access"
+        HOST[Host Machine<br/>localhost:8001-8003]
+    end
+    
+    %% Network connections
+    S1 -.-> PN
+    S2 -.-> PN
+    S3 -.-> PN
+    
+    S1 -.-> SP1
+    S2 -.-> SP2
+    S3 -.-> SP3
+    
+    %% Inter-service communication
+    S1PE -.->|HTTP calls| S2PE
+    S1PE -.->|HTTP calls| S3PE
+    S2PE -.->|HTTP calls| S1PE
+    S2PE -.->|HTTP calls| S3PE
+    S3PE -.->|HTTP calls| S1PE
+    S3PE -.->|HTTP calls| S2PE
+    
+    %% Host access
+    HOST -->|8001| S1
+    HOST -->|8002| S2
+    HOST -->|8003| S3
+    
+    %% Styling
+    classDef serviceBox fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef networkBox fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef endpointBox fill:#e8f5e8,stroke:#1b5e20,stroke-width:1px
+    classDef privateBox fill:#fff3e0,stroke:#e65100,stroke-width:1px
+    
+    class S1,S2,S3 serviceBox
+    class PN,SP1,SP2,SP3 networkBox
+    class S1PE,S2PE,S3PE endpointBox
+    class S1PV,S2PV,S3PV privateBox
 ```
 
 ## 🚀 Quick Start
