@@ -1,5 +1,3 @@
-version: '3.8'
-
 networks:
   public_network:
     driver: bridge
@@ -16,3 +14,14 @@ networks:
   service3_private:
     driver: bridge
     name: service3_private
+
+services:
+  # Dummy service to create networks
+  network-creator:
+    image: alpine:latest
+    command: "true"
+    networks:
+      - public_network
+      - service1_private
+      - service2_private
+      - service3_private

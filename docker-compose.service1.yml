@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   service1:
@@ -20,5 +19,7 @@ services:
 networks:
   public_network:
     external: true
+    name: public_network
   service1_private:
     external: true
+    name: service1_private
