@@ -10,18 +10,31 @@ This is a Docker Compose network playground demonstrating inter-service communic
 
 ### Multi-Compose File Structure
 - `docker-compose.networks.yml` - Defines shared networks (`public_network`) and manages network isolation
-- `docker-compose.service1.yml`, `docker-compose.service2.yml`, `docker-compose.service3.yml` - Individual service definitions
+- `docker-compose.service1.yml`, `docker-compose.service2.yml`, `docker-compose.service3.yml` - Individual service definitions with public and private containers
 
 ### Network Architecture
 - **Public Network** (`public_network`): Shared bridge network for inter-service communication
 - **Private Networks** (`service1_private`, `service2_private`, `service3_private`): Isolated networks for each service's private endpoints
 
 ### Service Design Pattern
-Each service implements:
-- Public endpoint (`/public/echo`) - accessible across services via public network
-- Private endpoint (`/private/info`) - only accessible within service's private network
-- Health endpoint (`/health`) - public health check
-- Inter-service communication endpoint (`/call-others`) - demonstrates network access patterns
+Each service runs in **two separate containers**:
+
+#### Public Container (e.g., `service1`)
+- Connected to: `public_network`
+- Serves: `/public/echo`, `/health`, `/call-others`
+- Port mapping: `8001:8080` (external access)
+- Environment: `APP_MODE=public`
+
+#### Private Container (e.g., `service1-private`)
+- Connected to: `service1_private` network only
+- Serves: `/private/info`
+- No external port mapping (internal only)
+- Environment: `APP_MODE=private`
+
+### True Network Isolation
+- Public containers cannot access private endpoints of other services
+- Private containers are isolated to their own private networks
+- Inter-service communication limited to public endpoints only
 
 ## Common Commands
 
@@ -30,7 +43,7 @@ Each service implements:
 # Start networks first
 docker-compose -f docker-compose.networks.yml up -d
 
-# Start all services
+# Start all services (each creates both public and private containers)
 docker-compose -f docker-compose.service1.yml up -d
 docker-compose -f docker-compose.service2.yml up -d
 docker-compose -f docker-compose.service3.yml up -d
@@ -41,10 +54,13 @@ docker-compose -f docker-compose.service3.yml up -d
 # View service logs
 docker-compose -f docker-compose.service1.yml logs -f
 
-# Test public endpoints (replace with actual ports)
+# Test public endpoints
 curl http://localhost:8001/public/echo
 curl http://localhost:8001/health
 curl http://localhost:8001/call-others
+
+# Test private endpoint isolation (should fail)
+curl http://localhost:8002/private/info  # Returns 404 - blocked by APP_MODE=public
 
 # Stop services
 docker-compose -f docker-compose.service1.yml down
@@ -57,34 +73,56 @@ docker-compose -f docker-compose.networks.yml down
 ```bash
 # Inspect networks
 docker network ls
-docker network inspect docker-compose-network-playground_public_network
+docker network inspect public_network
 
-# View service network connections
-docker inspect <container_name> | grep NetworkMode
+# View running containers
+docker ps  # Should show 6 containers (3 public + 3 private)
+
+# Test network isolation
+docker exec service1 python3 -c "import requests; requests.get('http://service2-private:8081/private/info')"
+# Should fail with connection error - demonstrates proper isolation
 ```
 
 ## Implementation Guidelines
 
 ### Service Configuration Pattern
-Services should be configured with:
-- Connection to both public and private networks
-- Environment variables: `SERVICE_NAME`, `PUBLIC_PORT`, `PRIVATE_PORT`
-- Port mapping for public endpoints only
-- Structured JSON logging for all requests and inter-service calls
+Services are configured as two containers:
+
+#### Public Container Configuration:
+- Environment: `APP_MODE=public`, `SERVICE_NAME`, `PUBLIC_PORT`, `PRIVATE_PORT`
+- Networks: `public_network` only
+- Port mapping: External access (e.g., `8001:8080`)
+- Endpoints: `/public/echo`, `/health`, `/call-others`
+
+#### Private Container Configuration:
+- Environment: `APP_MODE=private`, `SERVICE_NAME`, `PUBLIC_PORT`, `PRIVATE_PORT`
+- Networks: Service-specific private network only (e.g., `service1_private`)
+- No port mapping: Internal access only
+- Endpoints: `/private/info`
 
 ### API Response Format
 All endpoints return standardized JSON with `service`, `endpoint`, `timestamp`, and `data` fields.
 
 ### Network Isolation Testing
-The `/call-others` endpoint should attempt to call both public and private endpoints of other services, logging success/failure to demonstrate network isolation effectiveness.
+The `/call-others` endpoint attempts to call both public and private endpoints of other services:
+- Public endpoints: `http://service2:8080/public/echo` (✅ succeeds)
+- Private endpoints: `http://service2-private:8081/private/info` (❌ fails with connection error)
+
+### APP_MODE Environment Variable
+- `APP_MODE=public`: Only serves public endpoints (`/public/echo`, `/health`, `/call-others`)
+- `APP_MODE=private`: Only serves private endpoints (`/private/info`)
+- `APP_MODE=all`: Serves all endpoints (legacy mode, not used in current implementation)
 
 ## Expected Behavior
-- Public endpoints accessible between services
-- Private endpoints return connection errors when accessed from other services
+- **Public endpoints**: ✅ Accessible between public containers via `public_network`
+- **Private endpoints**: ❌ Network isolated - connection errors when accessed from other services
+- **Cross-service private access**: ❌ Properly blocked at network level
+- **Public container private access**: ❌ Blocked at application level (404 error)
 - Comprehensive logging of all communication attempts
-- Clear demonstration of Docker network isolation principles
+- Clear demonstration of true Docker network isolation principles
 
 ## ToDo
-- Add missing service dependencies
-- Implement comprehensive network isolation test cases
-- Create detailed documentation for each service's network configuration
+- Add comprehensive automated testing for network isolation
+- Implement health checks for private containers
+- Add monitoring and metrics collection
+- Create additional test scenarios for edge cases

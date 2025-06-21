@@ -6,48 +6,62 @@ Create a Docker Compose network demonstration with multiple services that can co
 ## Architecture
 
 ### Network Topology
-- **Public Network**: Shared network for inter-service communication
-- **Private Networks**: Individual private networks for each service's internal endpoints
+- **Public Network**: Shared network for inter-service communication (`public_network`)
+- **Private Networks**: Individual private networks for each service's internal endpoints (`service1_private`, `service2_private`, `service3_private`)
+
+### Dual-Container Architecture
+Each service is implemented as **two separate containers**:
+
+1. **Public Container**: Handles public endpoints, connected to `public_network`
+2. **Private Container**: Handles private endpoints, connected to service-specific private network only
 
 ### Components
 1. **Network Configuration File** (`docker-compose.networks.yml`)
    - Defines shared public network
    - Manages network isolation
 
-2. **Service Files** (3 separate compose files)
-   - `docker-compose.service1.yml`
-   - `docker-compose.service2.yml`
-   - `docker-compose.service3.yml`
+2. **Service Files** (3 separate compose files with dual containers each)
+   - `docker-compose.service1.yml` - Creates `service1` and `service1-private` containers
+   - `docker-compose.service2.yml` - Creates `service2` and `service2-private` containers
+   - `docker-compose.service3.yml` - Creates `service3` and `service3-private` containers
 
 ## Service Specifications
 
 ### Each Service Must Have:
 
-#### 1. Public Endpoint
+#### Public Container Endpoints:
+
+##### 1. Public Echo Endpoint
 - **Path**: `/public/echo`
 - **Method**: GET/POST
+- **Container**: Public container only
 - **Functionality**: Echo service that returns request data with service identifier
 - **Access**: Available to all services on the public network
 
-#### 2. Private Endpoint
-- **Path**: `/private/info`
-- **Method**: GET
-- **Functionality**: Returns sensitive service information
-- **Access**: Only accessible within the service's private network
-
-#### 3. Health Check Endpoint
+##### 2. Health Check Endpoint
 - **Path**: `/health`
 - **Method**: GET
+- **Container**: Public container only
 - **Functionality**: Returns service status
 - **Access**: Public
 
-#### 4. Inter-Service Communication
+##### 3. Inter-Service Communication
 - **Path**: `/call-others`
 - **Method**: GET
+- **Container**: Public container only
 - **Functionality**: 
-  - Calls public endpoints of other services
-  - Attempts to call private endpoints (should fail)
+  - Calls public endpoints of other services (succeeds)
+  - Attempts to call private endpoints at `service-name-private:8081` (fails with network error)
   - Logs all results
+
+#### Private Container Endpoints:
+
+##### 4. Private Information Endpoint
+- **Path**: `/private/info`
+- **Method**: GET
+- **Container**: Private container only
+- **Functionality**: Returns sensitive service information
+- **Access**: Only accessible within the service's private network (truly isolated)
 
 ## Network Configuration
 
@@ -64,8 +78,11 @@ Create a Docker Compose network demonstration with multiple services that can co
 ## Service Implementation
 
 ### Technology Stack
-- **Language**: Python or Node.js (lightweight web framework)
-- **Framework**: Flask/FastAPI (Python) or Express (Node.js)
+- **Language**: Python with Flask
+- **Framework**: Single Flask app with APP_MODE environment variable
+- **Container Modes**: 
+  - `APP_MODE=public`: Serves only public endpoints
+  - `APP_MODE=private`: Serves only private endpoints
 - **Logging**: Structured JSON logging
 
 ### API Response Format
@@ -91,17 +108,32 @@ Create a Docker Compose network demonstration with multiple services that can co
 ### Service Configuration
 ```yaml
 services:
+  # Public container
   service_name:
     build: ./service_name
+    container_name: service_name
     networks:
       - public_network
+    environment:
+      - SERVICE_NAME=service_name
+      - PUBLIC_PORT=8080
+      - PRIVATE_PORT=8081
+      - APP_MODE=public
+    ports:
+      - "host_port:8080"  # Public port mapping
+
+  # Private container
+  service_name-private:
+    build: ./service_name
+    container_name: service_name-private
+    networks:
       - service_name_private
     environment:
       - SERVICE_NAME=service_name
       - PUBLIC_PORT=8080
       - PRIVATE_PORT=8081
-    ports:
-      - "host_port:8080"  # Public port mapping
+      - APP_MODE=private
+    # No port mapping - internal only
 ```
 
 ### Volume Mounts
@@ -111,15 +143,23 @@ services:
 ## Testing Requirements
 
 ### Functional Tests
-1. Each service's public endpoint is accessible from other services
-2. Each service's private endpoint is NOT accessible from other services
-3. Health checks work for all services
-4. Inter-service communication logs are generated
+1. Public containers can access other services' public endpoints ✅
+2. Public containers cannot access other services' private endpoints ❌ (network isolation)
+3. Public containers return 404 for private endpoint requests ❌ (APP_MODE=public)
+4. Private containers serve only private endpoints ✅
+5. Health checks work for all public containers ✅
+6. Inter-service communication logs are generated ✅
 
 ### Network Isolation Tests
-1. Verify services cannot access each other's private networks
-2. Verify all services can communicate on public network
-3. Test DNS resolution within networks
+1. Verify public containers cannot reach private containers of other services ❌
+2. Verify all public containers can communicate on public network ✅
+3. Verify private containers are isolated to their own networks ✅
+4. Test DNS resolution: `service-name` (public) vs `service-name-private` (private) ✅
+
+### Expected Results
+- Public-to-public communication: **SUCCESS**
+- Public-to-private communication: **NETWORK ERROR** (connection refused/timeout)
+- Private endpoint on public container: **404 ERROR** (APP_MODE restriction)
 
 ## Running Instructions
 
@@ -133,14 +173,19 @@ services:
    ```
 
 ### Verification Steps
-1. Check all services are healthy
-2. Test public endpoints from host
-3. Execute inter-service communication tests
-4. Verify network isolation
+1. Check all containers are running (should see 6 total: 3 public + 3 private)
+2. Test public endpoints from host (ports 8001-8003)
+3. Execute inter-service communication tests (`/call-others`)
+4. Verify network isolation (private endpoints return connection errors)
+5. Test APP_MODE restrictions (private endpoints on public containers return 404)
 
 ## Success Criteria
-- All services running and healthy
-- Public endpoints accessible between services
-- Private endpoints properly isolated
-- Comprehensive logging of all communication attempts
-- Clear demonstration of Docker network isolation principles
+- **6 containers running**: 3 public + 3 private containers ✅
+- **Public endpoints accessible** between services ✅
+- **Private endpoints network isolated** (connection errors) ✅
+- **APP_MODE enforcement** (404 errors for wrong endpoint types) ✅
+- **Comprehensive logging** of all communication attempts ✅
+- **True Docker network isolation** demonstrated ✅
+
+## Implementation Status
+✅ **COMPLETED** - True network isolation achieved through dual-container architecture with APP_MODE environment variable controlling endpoint availability.

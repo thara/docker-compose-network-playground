@@ -23,28 +23,25 @@ graph TB
             SP3[Service3 Private<br/>service3_private]
         end
         
-        subgraph "Service 1 Container"
-            S1[Service 1<br/>Port: 8001:8080]
-            S1PE[Public Endpoints<br/>/health<br/>/public/echo<br/>/call-others]
-            S1PV[Private Endpoint<br/>/private/info]
-            S1 --> S1PE
-            S1 --> S1PV
+        subgraph "Service 1"
+            S1PUB[Public Container<br/>service1<br/>Port: 8001:8080]
+            S1PRIV[Private Container<br/>service1-private<br/>No external port]
+            S1PUB --> S1PE[Public Endpoints<br/>/health<br/>/public/echo<br/>/call-others]
+            S1PRIV --> S1PV[Private Endpoint<br/>/private/info]
         end
         
-        subgraph "Service 2 Container"
-            S2[Service 2<br/>Port: 8002:8080]
-            S2PE[Public Endpoints<br/>/health<br/>/public/echo<br/>/call-others]
-            S2PV[Private Endpoint<br/>/private/info]
-            S2 --> S2PE
-            S2 --> S2PV
+        subgraph "Service 2"
+            S2PUB[Public Container<br/>service2<br/>Port: 8002:8080]
+            S2PRIV[Private Container<br/>service2-private<br/>No external port]
+            S2PUB --> S2PE[Public Endpoints<br/>/health<br/>/public/echo<br/>/call-others]
+            S2PRIV --> S2PV[Private Endpoint<br/>/private/info]
         end
         
-        subgraph "Service 3 Container"
-            S3[Service 3<br/>Port: 8003:8080]
-            S3PE[Public Endpoints<br/>/health<br/>/public/echo<br/>/call-others]
-            S3PV[Private Endpoint<br/>/private/info]
-            S3 --> S3PE
-            S3 --> S3PV
+        subgraph "Service 3"
+            S3PUB[Public Container<br/>service3<br/>Port: 8003:8080]
+            S3PRIV[Private Container<br/>service3-private<br/>No external port]
+            S3PUB --> S3PE[Public Endpoints<br/>/health<br/>/public/echo<br/>/call-others]
+            S3PRIV --> S3PV[Private Endpoint<br/>/private/info]
         end
     end
     
@@ -53,15 +50,15 @@ graph TB
     end
     
     %% Network connections
-    S1 -.-> PN
-    S2 -.-> PN
-    S3 -.-> PN
+    S1PUB -.-> PN
+    S2PUB -.-> PN
+    S3PUB -.-> PN
     
-    S1 -.-> SP1
-    S2 -.-> SP2
-    S3 -.-> SP3
+    S1PRIV -.-> SP1
+    S2PRIV -.-> SP2
+    S3PRIV -.-> SP3
     
-    %% Inter-service communication
+    %% Inter-service communication (public only)
     S1PE -.->|HTTP calls| S2PE
     S1PE -.->|HTTP calls| S3PE
     S2PE -.->|HTTP calls| S1PE
@@ -69,18 +66,28 @@ graph TB
     S3PE -.->|HTTP calls| S1PE
     S3PE -.->|HTTP calls| S2PE
     
+    %% Blocked connections (network isolation)
+    S1PE -.->|❌ BLOCKED| S2PV
+    S1PE -.->|❌ BLOCKED| S3PV
+    S2PE -.->|❌ BLOCKED| S1PV
+    S2PE -.->|❌ BLOCKED| S3PV
+    S3PE -.->|❌ BLOCKED| S1PV
+    S3PE -.->|❌ BLOCKED| S2PV
+    
     %% Host access
-    HOST -->|8001| S1
-    HOST -->|8002| S2
-    HOST -->|8003| S3
+    HOST -->|8001| S1PUB
+    HOST -->|8002| S2PUB
+    HOST -->|8003| S3PUB
     
     %% Styling
     classDef serviceBox fill:#b3e5fc,stroke:#0277bd,stroke-width:3px,color:#000000
+    classDef privateContainer fill:#ffeb3b,stroke:#f57f17,stroke-width:3px,color:#000000
     classDef networkBox fill:#e1bee7,stroke:#7b1fa2,stroke-width:3px,color:#000000
     classDef endpointBox fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#000000
     classDef privateBox fill:#ffccbc,stroke:#d84315,stroke-width:2px,color:#000000
     
-    class S1,S2,S3 serviceBox
+    class S1PUB,S2PUB,S3PUB serviceBox
+    class S1PRIV,S2PRIV,S3PRIV privateContainer
     class PN,SP1,SP2,SP3 networkBox
     class S1PE,S2PE,S3PE endpointBox
     class S1PV,S2PV,S3PV privateBox
@@ -144,10 +151,11 @@ This endpoint demonstrates:
 - Success/failure patterns in distributed systems
 
 ### 2. Network Isolation Concepts
-The `/private/info` endpoints show:
-- How "private" endpoints would work in isolated networks
-- Current accessibility due to shared public network
-- Educational explanations of true network isolation
+The `/private/info` endpoints demonstrate:
+- **True network isolation**: Private containers are on separate networks
+- **Access control**: Public containers return 404 for private endpoints
+- **Cross-service blocking**: Private endpoints unreachable from other services
+- **Educational value**: Shows real Docker network isolation in action
 
 ### 3. Service Health Monitoring
 ```bash
@@ -183,6 +191,9 @@ curl http://localhost:8002/public/echo?message=hello
 # Test inter-service communication
 curl http://localhost:8003/call-others
 
+# Test network isolation (should return 404)
+curl http://localhost:8002/private/info
+
 # POST request example
 curl -X POST http://localhost:8001/public/echo \
   -H "Content-Type: application/json" \
@@ -194,7 +205,7 @@ curl -X POST http://localhost:8001/public/echo \
 # Run all tests
 ./test.sh
 
-# View service logs
+# View service logs (shows both public and private containers)
 docker-compose -f docker-compose.service1.yml logs -f
 ```
 
@@ -235,22 +246,27 @@ Edit the Flask applications in `service*/app.py`:
 - Add appropriate logging
 
 ### Network Isolation
-To implement true network isolation:
-1. Remove services from shared `public_network`
-2. Create dedicated networks for private communications
-3. Update service configurations accordingly
+The current implementation demonstrates true network isolation:
+1. **Public containers**: Connected only to `public_network`
+2. **Private containers**: Connected only to service-specific private networks
+3. **APP_MODE environment variable**: Controls endpoint availability per container
+4. **Result**: Private endpoints truly isolated at the network level
 
 ## 🔍 Monitoring
 
 ### View Logs
 ```bash
-# All services
+# All services (public and private containers)
 docker-compose -f docker-compose.service1.yml logs
 docker-compose -f docker-compose.service2.yml logs
 docker-compose -f docker-compose.service3.yml logs
 
-# Follow logs
+# Follow logs for specific service
 docker-compose -f docker-compose.service1.yml logs -f
+
+# View specific container logs
+docker logs service1        # Public container
+docker logs service1-private # Private container
 ```
 
 ### Network Inspection
@@ -267,11 +283,15 @@ docker inspect service1 | grep NetworkMode
 
 ### Service Status
 ```bash
-# Container status
+# Container status (should show 6 containers total)
 docker ps
 
 # Resource usage
 docker stats
+
+# Test network isolation
+docker exec service1 python3 -c "import requests; requests.get('http://service2-private:8081/private/info')"
+# Should fail with connection error
 ```
 
 ## 🎓 Learning Exercises
