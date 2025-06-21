@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  service1:
+    build: ./service1
+    container_name: service1
+    environment:
+      - SERVICE_NAME=service1
+      - PUBLIC_PORT=8080
+      - PRIVATE_PORT=8081
+    ports:
+      - "8001:8080"  # Public port mapping
+    networks:
+      - public_network
+      - service1_private
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+networks:
+  public_network:
+    external: true
+  service1_private:
+    external: true
