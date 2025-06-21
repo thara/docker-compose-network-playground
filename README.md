@@ -54,6 +54,10 @@ graph TB
     S2PUB -.-> PN
     S3PUB -.-> PN
     
+    S1PUB -.-> SP1
+    S2PUB -.-> SP2
+    S3PUB -.-> SP3
+    
     S1PRIV -.-> SP1
     S2PRIV -.-> SP2
     S3PRIV -.-> SP3
@@ -66,7 +70,12 @@ graph TB
     S3PE -.->|HTTP calls| S1PE
     S3PE -.->|HTTP calls| S2PE
     
-    %% Blocked connections (network isolation)
+    %% Same-service private connections (allowed)
+    S1PE -.->|✅ ALLOWED| S1PV
+    S2PE -.->|✅ ALLOWED| S2PV
+    S3PE -.->|✅ ALLOWED| S3PV
+    
+    %% Cross-service private connections (blocked)
     S1PE -.->|❌ BLOCKED| S2PV
     S1PE -.->|❌ BLOCKED| S3PV
     S2PE -.->|❌ BLOCKED| S1PV

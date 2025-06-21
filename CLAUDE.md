@@ -20,10 +20,11 @@ This is a Docker Compose network playground demonstrating inter-service communic
 Each service runs in **two separate containers**:
 
 #### Public Container (e.g., `service1`)
-- Connected to: `public_network`
+- Connected to: `public_network` + `service1_private`
 - Serves: `/public/echo`, `/health`, `/call-others`
 - Port mapping: `8001:8080` (external access)
 - Environment: `APP_MODE=public`
+- Can access: Own private container (`service1-private`)
 
 #### Private Container (e.g., `service1-private`)
 - Connected to: `service1_private` network only
@@ -32,9 +33,10 @@ Each service runs in **two separate containers**:
 - Environment: `APP_MODE=private`
 
 ### True Network Isolation
-- Public containers cannot access private endpoints of other services
-- Private containers are isolated to their own private networks
-- Inter-service communication limited to public endpoints only
+- **Same-service access**: ✅ Public containers can access their own private containers
+- **Cross-service private access**: ❌ Public containers cannot access other services' private containers  
+- **Private container isolation**: ❌ Private containers isolated to their own networks only
+- **Inter-service communication**: Limited to public endpoints only
 
 ## Common Commands
 
@@ -78,7 +80,10 @@ docker network inspect public_network
 # View running containers
 docker ps  # Should show 6 containers (3 public + 3 private)
 
-# Test network isolation
+# Test same-service private access (should work)
+docker exec service1 python3 -c "import requests; print(requests.get('http://service1-private:8081/private/info').json())"
+
+# Test cross-service isolation (should fail)
 docker exec service1 python3 -c "import requests; requests.get('http://service2-private:8081/private/info')"
 # Should fail with connection error - demonstrates proper isolation
 ```
@@ -90,9 +95,10 @@ Services are configured as two containers:
 
 #### Public Container Configuration:
 - Environment: `APP_MODE=public`, `SERVICE_NAME`, `PUBLIC_PORT`, `PRIVATE_PORT`
-- Networks: `public_network` only
+- Networks: `public_network` + own private network (e.g., `service1_private`)
 - Port mapping: External access (e.g., `8001:8080`)
 - Endpoints: `/public/echo`, `/health`, `/call-others`
+- Access: Can reach own private container
 
 #### Private Container Configuration:
 - Environment: `APP_MODE=private`, `SERVICE_NAME`, `PUBLIC_PORT`, `PRIVATE_PORT`

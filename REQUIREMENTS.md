@@ -114,6 +114,7 @@ services:
     container_name: service_name
     networks:
       - public_network
+      - service_name_private  # Can access own private container
     environment:
       - SERVICE_NAME=service_name
       - PUBLIC_PORT=8080
@@ -144,11 +145,12 @@ services:
 
 ### Functional Tests
 1. Public containers can access other services' public endpoints ✅
-2. Public containers cannot access other services' private endpoints ❌ (network isolation)
-3. Public containers return 404 for private endpoint requests ❌ (APP_MODE=public)
-4. Private containers serve only private endpoints ✅
-5. Health checks work for all public containers ✅
-6. Inter-service communication logs are generated ✅
+2. Public containers can access their own private endpoints ✅
+3. Public containers cannot access other services' private endpoints ❌ (network isolation)
+4. Public containers return 404 for private endpoint requests ❌ (APP_MODE=public)
+5. Private containers serve only private endpoints ✅
+6. Health checks work for all public containers ✅
+7. Inter-service communication logs are generated ✅
 
 ### Network Isolation Tests
 1. Verify public containers cannot reach private containers of other services ❌
@@ -157,9 +159,10 @@ services:
 4. Test DNS resolution: `service-name` (public) vs `service-name-private` (private) ✅
 
 ### Expected Results
-- Public-to-public communication: **SUCCESS**
-- Public-to-private communication: **NETWORK ERROR** (connection refused/timeout)
-- Private endpoint on public container: **404 ERROR** (APP_MODE restriction)
+- **Public-to-public communication**: SUCCESS ✅
+- **Same-service private access**: SUCCESS ✅ (service1 → service1-private)
+- **Cross-service private access**: NETWORK ERROR ❌ (service1 → service2-private)
+- **Private endpoint on public container**: 404 ERROR ❌ (APP_MODE restriction)
 
 ## Running Instructions
 

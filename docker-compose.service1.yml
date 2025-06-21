@@ -12,6 +12,7 @@ services:
       - "8001:8080"  # Public port mapping
     networks:
       - public_network
+      - service1_private
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
