@@ -75,10 +75,10 @@ graph TB
     HOST -->|8003| S3
     
     %% Styling
-    classDef serviceBox fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    classDef networkBox fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef endpointBox fill:#e8f5e8,stroke:#1b5e20,stroke-width:1px
-    classDef privateBox fill:#fff3e0,stroke:#e65100,stroke-width:1px
+    classDef serviceBox fill:#b3e5fc,stroke:#0277bd,stroke-width:3px
+    classDef networkBox fill:#e1bee7,stroke:#7b1fa2,stroke-width:3px
+    classDef endpointBox fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
+    classDef privateBox fill:#ffccbc,stroke:#d84315,stroke-width:2px
     
     class S1,S2,S3 serviceBox
     class PN,SP1,SP2,SP3 networkBox
