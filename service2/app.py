@@ -87,6 +87,30 @@ def call_others():
     logger.info("Inter-service communication test started")
     
     results = []
+    
+    # First, test access to own private endpoint (should work)
+    try:
+        response = requests.get(f"http://{SERVICE_NAME}-private:8081/private/info", timeout=5)
+        results.append({
+            "target": f"{SERVICE_NAME}-private",
+            "endpoint": "/private/info",
+            "status": "success",
+            "status_code": response.status_code,
+            "response": response.json(),
+            "note": "Successfully accessed own private endpoint"
+        })
+        logger.info(f"Successfully accessed own private endpoint")
+    except Exception as e:
+        results.append({
+            "target": f"{SERVICE_NAME}-private",
+            "endpoint": "/private/info",
+            "status": "failed",
+            "error": str(e),
+            "note": "Failed to access own private endpoint - unexpected"
+        })
+        logger.error(f"Failed to access own private endpoint: {e}")
+    
+    # Then test other services
     other_services = ['service2', 'service3'] if SERVICE_NAME == 'service1' else \
                     ['service1', 'service3'] if SERVICE_NAME == 'service2' else \
                     ['service1', 'service2']

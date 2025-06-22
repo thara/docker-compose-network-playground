@@ -2,26 +2,11 @@ networks:
   public_network:
     driver: bridge
     name: public_network
-  
-  service1_private:
-    driver: bridge
-    name: service1_private
-  
-  service2_private:
-    driver: bridge
-    name: service2_private
-    
-  service3_private:
-    driver: bridge
-    name: service3_private
 
 services:
-  # Dummy service to create networks
+  # Dummy service to create the shared public network
   network-creator:
     image: alpine:latest
     command: "true"
     networks:
       - public_network
-      - service1_private
-      - service2_private
-      - service3_private

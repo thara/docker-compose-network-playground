@@ -36,5 +36,5 @@ networks:
     external: true
     name: public_network
   service1_private:
-    external: true
+    driver: bridge
     name: service1_private
