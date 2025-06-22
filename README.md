@@ -16,13 +16,6 @@ This playground helps you understand:
 ```mermaid
 graph TB
     subgraph "Host System"
-        subgraph "Docker Networks"
-            PN[Public Network<br/>public_network]
-            SP1[Service1 Private<br/>service1_private]
-            SP2[Service2 Private<br/>service2_private]
-            SP3[Service3 Private<br/>service3_private]
-        end
-        
         subgraph "Service 1"
             S1PUB[Public Container<br/>service1<br/>Port: 8001:8080]
             S1PRIV[Private Container<br/>service1-private<br/>No external port]
@@ -49,18 +42,7 @@ graph TB
         HOST[Host Machine<br/>localhost:8001-8003]
     end
     
-    %% Network connections
-    S1PUB -.-> PN
-    S2PUB -.-> PN
-    S3PUB -.-> PN
-    
-    S1PUB -.-> SP1
-    S2PUB -.-> SP2
-    S3PUB -.-> SP3
-    
-    S1PRIV -.-> SP1
-    S2PRIV -.-> SP2
-    S3PRIV -.-> SP3
+    %% Public network connections shown through inter-service communication arrows
     
     %% Inter-service communication (public only)
     S1PE -.->|HTTP calls| S2PE
@@ -71,17 +53,9 @@ graph TB
     S3PE -.->|HTTP calls| S2PE
     
     %% Same-service private connections (allowed)
-    S1PE -.->|✅ ALLOWED| S1PV
-    S2PE -.->|✅ ALLOWED| S2PV
-    S3PE -.->|✅ ALLOWED| S3PV
-    
-    %% Cross-service private connections (blocked)
-    S1PE -.->|❌ BLOCKED| S2PV
-    S1PE -.->|❌ BLOCKED| S3PV
-    S2PE -.->|❌ BLOCKED| S1PV
-    S2PE -.->|❌ BLOCKED| S3PV
-    S3PE -.->|❌ BLOCKED| S1PV
-    S3PE -.->|❌ BLOCKED| S2PV
+    S1PE -.->|Internal Access| S1PV
+    S2PE -.->|Internal Access| S2PV
+    S3PE -.->|Internal Access| S3PV
     
     %% Host access
     HOST -->|8001| S1PUB
@@ -91,16 +65,16 @@ graph TB
     %% Styling
     classDef serviceBox fill:#b3e5fc,stroke:#0277bd,stroke-width:3px,color:#000000
     classDef privateContainer fill:#ffeb3b,stroke:#f57f17,stroke-width:3px,color:#000000
-    classDef networkBox fill:#e1bee7,stroke:#7b1fa2,stroke-width:3px,color:#000000
     classDef endpointBox fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#000000
     classDef privateBox fill:#ffccbc,stroke:#d84315,stroke-width:2px,color:#000000
     
     class S1PUB,S2PUB,S3PUB serviceBox
     class S1PRIV,S2PRIV,S3PRIV privateContainer
-    class PN,SP1,SP2,SP3 networkBox
     class S1PE,S2PE,S3PE endpointBox
     class S1PV,S2PV,S3PV privateBox
 ```
+
+> **Note**: The diagram shows only allowed connections. Cross-service private endpoints (e.g., service1 → service2-private) are blocked by network isolation and cannot communicate.
 
 ## 🚀 Quick Start
 
