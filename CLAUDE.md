@@ -9,12 +9,12 @@ This is a Docker Compose network playground demonstrating inter-service communic
 ## Architecture
 
 ### Multi-Compose File Structure
-- `docker-compose.networks.yml` - Defines shared networks (`public_network`) and manages network isolation
-- `docker-compose.service1.yml`, `docker-compose.service2.yml`, `docker-compose.service3.yml` - Individual service definitions with public and private containers
+- `docker-compose.networks.yml` - Defines only the shared `public_network`
+- `docker-compose.service1.yml`, `docker-compose.service2.yml`, `docker-compose.service3.yml` - Individual service definitions with public and private containers, each creating its own private network
 
 ### Network Architecture
-- **Public Network** (`public_network`): Shared bridge network for inter-service communication
-- **Private Networks** (`service1_private`, `service2_private`, `service3_private`): Isolated networks for each service's private endpoints
+- **Public Network** (`public_network`): Shared bridge network for inter-service communication (external: true in service files)
+- **Private Networks** (`service1_private`, `service2_private`, `service3_private`): Isolated networks created by each service file (no external: true)
 
 ### Service Design Pattern
 Each service runs in **two separate containers**:
@@ -110,9 +110,10 @@ Services are configured as two containers:
 All endpoints return standardized JSON with `service`, `endpoint`, `timestamp`, and `data` fields.
 
 ### Network Isolation Testing
-The `/call-others` endpoint attempts to call both public and private endpoints of other services:
-- Public endpoints: `http://service2:8080/public/echo` (✅ succeeds)
-- Private endpoints: `http://service2-private:8081/private/info` (❌ fails with connection error)
+The `/call-others` endpoint tests network isolation by attempting to call:
+- Own private endpoint: `http://service1-private:8081/private/info` (✅ succeeds - same network)
+- Other services' public endpoints: `http://service2:8080/public/echo` (✅ succeeds)
+- Other services' private endpoints: `http://service2-private:8081/private/info` (❌ fails with connection error)
 
 ### APP_MODE Environment Variable
 - `APP_MODE=public`: Only serves public endpoints (`/public/echo`, `/health`, `/call-others`)

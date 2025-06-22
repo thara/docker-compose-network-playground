@@ -158,6 +158,8 @@ This endpoint demonstrates:
 - How services discover and communicate with each other
 - DNS resolution within Docker networks
 - Success/failure patterns in distributed systems
+- Same-service private access (✅ service1 → service1-private)
+- Cross-service isolation (❌ service1 → service2-private)
 
 ### 2. Network Isolation Concepts
 The `/private/info` endpoints demonstrate:
@@ -225,7 +227,7 @@ docker-compose -f docker-compose.service1.yml logs -f
 ├── README.md                     # This file
 ├── REQUIREMENTS.md               # Detailed requirements
 ├── CLAUDE.md                     # Development guidance
-├── docker-compose.networks.yml   # Network definitions
+├── docker-compose.networks.yml   # Shared public network definition
 ├── docker-compose.service1.yml   # Service 1 configuration
 ├── docker-compose.service2.yml   # Service 2 configuration
 ├── docker-compose.service3.yml   # Service 3 configuration
@@ -256,10 +258,12 @@ Edit the Flask applications in `service*/app.py`:
 
 ### Network Isolation
 The current implementation demonstrates true network isolation:
-1. **Public containers**: Connected only to `public_network`
-2. **Private containers**: Connected only to service-specific private networks
-3. **APP_MODE environment variable**: Controls endpoint availability per container
-4. **Result**: Private endpoints truly isolated at the network level
+1. **Shared public network**: Defined in `docker-compose.networks.yml` (external)
+2. **Private networks**: Each service creates its own private network
+3. **Public containers**: Connected to both `public_network` and their own `service_private`
+4. **Private containers**: Connected only to their service-specific private network
+5. **APP_MODE environment variable**: Controls endpoint availability per container
+6. **Result**: Private endpoints truly isolated at the network level
 
 ## 🔍 Monitoring
 
